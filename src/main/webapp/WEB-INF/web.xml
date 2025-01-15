@@ -7,7 +7,7 @@
   <display-name>MSAL Servlet Auth</display-name>
 
   <session-config>
-    <session-timeout>30</session-timeout>
+    <session-timeout>2</session-timeout>
     <cookie-config>
       <http-only>true</http-only>
       <secure>true</secure>

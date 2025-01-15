@@ -1,7 +1,11 @@
 package com.msal.servlet;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.msal.auth.MsalClientProvider;
+import com.msal.model.UserProfile;
+import com.msal.services.UserService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -40,7 +44,22 @@ public class AuthCallbackServlet extends HttpServlet {
             session.removeAttribute("state");
             session.removeAttribute("nonce");
 
-            response.sendRedirect(request.getContextPath() + "/secure/home");
+            UserService userService = new UserService();
+
+            String userInfo = userService.getUserInfo(result.accessToken());
+
+            ObjectMapper objectMapper = new ObjectMapper();
+
+            JsonNode jsonNode = objectMapper.readTree(userInfo);
+
+            UserProfile userProfile = new UserProfile();
+
+            userProfile.setName(jsonNode.get("name").asText());
+            userProfile.setSub(jsonNode.get("sub").asText());
+
+            request.getSession().setAttribute("userInfo", userProfile);
+
+            response.sendRedirect(request.getContextPath() + "/index.jsp");
         } catch (Exception e) {
             throw new ServletException("Authentication failed", e);
         }
