@@ -380,3 +380,145 @@ public class UserPrincipal implements UserDetails {
 	}
 
 }
+<!DOCTYPE html>
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+	pageEncoding="ISO-8859-1" isELIgnored="false"%>
+<html>
+<head>
+<!-- <meta http-equiv="Content-Security-Policy" -->
+<!-- 	content="script-src 'self' 'strict-dynamic'; frame-ancestors 'self'; img-src 'self' data: http: https:; ;object-src 'none'; base-uri 'none'; "> -->
+<link rel="stylesheet"
+	href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+<link rel="stylesheet"
+	href="<%=request.getContextPath()%>/resources/css/footer.css"></link>
+<link rel="stylesheet"
+	href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
+<link rel="stylesheet"
+	href="<%=request.getContextPath()%>/resources/css/login.css">
+<!--  Toastr notifications -->
+<link href="<%=request.getContextPath()%>/resources/css/toastr.min.css"
+	rel="stylesheet">
+<link href="<%=request.getContextPath()%>/resources/css/styles.css"
+	rel="stylesheet">
+<script type="text/javascript" src="<%=request.getContextPath()%>/resources/js/common.js"></script>
+<link rel="stylesheet" href="<%=request.getContextPath()%>/resources/css/common.css" type="text/css">
+<script
+	src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+<script
+	src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="<%=request.getContextPath()%>/resources/js/toastr.min.js"></script>
+<script type="text/javascript">
+	toastr.options.preventDuplicates = true;
+	toastr.options = {
+		"preventDuplicates" : true,
+		"closeButton" : true,
+		"debug" : false,
+		"newestOnTop" : true,
+		"progressBar" : true,
+		"positionClass" : "toast-top-right",
+		"onclick" : null,
+		"showDuration" : "250",
+		"hideDuration" : "1000",
+		"timeOut" : "5000",
+		"extendedTimeOut" : "0",
+		"showEasing" : "swing",
+		"hideEasing" : "linear",
+		"showMethod" : "fadeIn",
+		"hideMethod" : "fadeOut"
+	}
+
+	function validate() {
+		if ($('#username').val() == "") {
+			toastr["error"]("Please enter a valid username", "Error");
+			return false;
+		} else if ($('#password').val() == "") {
+			toastr["error"]("Please enter a valid password", "Error");
+			return false;
+		}
+	}
+</script>
+</head>
+<body onload="focus()" style="overflow: hidden;">
+	<div class="wrapper">
+		<nav class="navbar navbar-default navTopBar">
+			<div class="container-fluid">
+				<div class="col-md-1">
+					<img src="<%=request.getContextPath()%>/resources/images/logo1.png"
+						alt="Fiserv Logo">
+				</div>
+				<div class="col-md-3">
+					<div class="navbar-header">
+						<a class="navbar-brand navHeader"> Risk Aggregation &amp;
+							Detection Administration </a>
+					</div>
+				</div>
+				<div class="col-md-4"></div>
+				<div class="col-md-3">
+				</div>
+			</div>
+			<div id="loader-spinner"></div>
+		</nav>
+		<div class="wrapperLogin fadeInDown">
+			<div id="formContent">
+				<!-- Tabs Titles -->
+				<!-- Icon -->
+				<div class="fadeIn first heading">
+					<!--       <h3>GLOBAL SANCTION SYSTEM</h3> -->
+					<h3>RAD Administration</h3>
+				</div>
+				<!-- Login Form -->
+				<form name="loginForm" action="/RAD-M/login" method='POST'>
+					<div>
+						<div class="error">
+							<p style="margin-bottom: 0rem;">${returnMessge}</p>
+						</div>
+						<i class="fas fa-user sign"></i><input type="text" id="username"
+							name="username" class="fadeIn second" autofocus="autofocus"
+							placeholder="Please enter your IDC ID"></input>
+					</div>
+					<div>
+						<i class="fas fa-key sign"></i><input type="password"
+							id="password" name="password" class="fadeIn third"
+							autofocus="autofocus" placeholder="Please enter your password"></input>
+					</div>
+					<input type="submit" class="fadeIn fourth loginBtn" value="Log In"
+						autofocus="autofocus" onclick="return validate()"
+						style="font-family: Arial"></input>
+				</form>
+			</div>
+		</div>
+	</div>
+	<footer class="footer" id="footer"
+		style="position: absolute !important;">
+		<div class="container" style="padding-top: 10px;">
+			<ul>
+				<li style="color: white;">�<span id="copyrightYear">2020</span>
+					Fiserv, Inc. or its affiliates
+				</li>
+				<li><a data-bind="text: Title, attr: { href: ComputedUrl() }"
+					href="https://www.fiserv.com/en/about-fiserv/privacy-notice.html"
+					target="_blank">Privacy Policy</a></li>
+				<!-- /ko -->
+			</ul>
+
+			<div class="footer-logo">
+				<a href="http://www.fiserv.com" target="_blank"> <img
+					class="desktop"
+					src="<%=request.getContextPath()%>/resources/images/logo1.png"
+					alt="Fiserv Logo" width="58" height="30" data-themekey="#">
+				</a>
+			</div>
+
+			<script type="text/javascript">
+				var currentDate = new Date();
+				var currentYear = currentDate.getYear();
+				if (currentYear < 1000)
+					currentYear += 1900;
+
+				jQuery("#copyrightYear").html(currentYear);
+			</script>
+		</div>
+		<!--/container-->
+	</footer>
+</body>
+</html>
