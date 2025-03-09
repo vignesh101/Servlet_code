@@ -25,3 +25,358 @@
     </user-data-constraint>
   </security-constraint>
 </web-app>
+
+
+package com.fiserv.radm.config;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.builders.WebSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+
+import com.fiserv.radm.security.CustomLDAPAuthenticationProvider;
+import com.fiserv.radm.security.DelegatingAuthenticationProvider;
+
+@Configuration
+@EnableWebSecurity(debug = true)
+@ComponentScan(basePackages = "com.fiserv.radm")
+public class WebSecurityConfiguration extends WebSecurityConfigurerAdapter {
+
+	@Autowired
+	DelegatingAuthenticationProvider delegateAuthProvider;
+	
+	@Autowired
+	CustomLDAPAuthenticationProvider customAuthProvider;
+
+	@Override
+	protected void configure(HttpSecurity http) throws Exception {
+		http.csrf().disable().authorizeRequests().antMatchers("/", "/logout").permitAll()
+				// Parameters
+				.antMatchers("/markerBank")
+				.hasAnyRole("paramMarkerBankRead","paramMarkerBankWrite")
+				.antMatchers("/maintainParameter")
+				.hasAnyRole("paramMaintainParameterRead","paramMaintainParameterWrite")
+				.antMatchers("/clearingBank")
+				.hasAnyRole("paramClearingBankRead","paramClearingBankWrite")
+				.antMatchers("/groupName")
+				.hasAnyRole("paramGroupNameRead","paramGroupNameWrite")
+				.antMatchers("/agentISOBank")
+				.hasAnyRole("paramAgentISOBankRead","paramAgentISOBankWrite")
+				.antMatchers("/initialParamXcludeList")
+				.hasAnyRole("paramBlazeMerchExcludRead","paramBlazeMerchExcludWrite")
+				.antMatchers("/parmBlazeExclud")
+				.hasAnyRole("paramBlazePortExcludRead","paramBlazePortExcludWrite")
+				.antMatchers("/viewWatchDef")
+				.hasAnyRole("paramMaintainWatchlistRead","paramMaintainDeferralRead","paramMaintainWatchlistWrite","paramMaintainDeferralWrite")
+				.antMatchers("/maintainWatchlist")
+				.hasAnyRole("paramMaintainWatchlistRead","paramMaintainWatchlistWrite")
+				.antMatchers("/maintainDeferral")
+				.hasAnyRole("paramMaintainDeferralRead","paramMaintainDeferralWrite")
+				.antMatchers("/maintainChrgbckRsnCd")
+				.hasAnyRole("paramMaintainChrgbckRsnCdRead","paramMaintainChrgbckRsnCdWrite")
+				.antMatchers("/paramXchangeRte")
+				.hasAnyRole("paramXchangeRteRead","paramXchangeRteWrite")
+				.antMatchers("/parmUpdtScanOfbase")
+				.hasAnyRole("paramUpdtScanOfbaseRead","paramUpdtScanOfbaseWrite")
+				.antMatchers("/maintainBlazeCode")
+				.hasAnyRole("paramMaintainBlazeCodeRead","paramMaintainBlazeCodeWrite")
+				.antMatchers("/parmBAMcutLimits")
+				.hasAnyRole("paramBAMcutLimitsRead","paramBAMcutLimitsWrite")
+				.antMatchers("/parmSICCode")
+				.hasAnyRole("paramSICCodeRead","paramSICCodeWrite")
+				.antMatchers("/parmSrcTypInitialLoad")
+				.hasAnyRole("paramSrcTypInitialLoadRead","paramSrcTypInitialLoadWrite")
+				.antMatchers("/radmParmAchRjck")
+				.hasAnyRole("paramAchRjckRead","paramAchRjckWrite")
+				.antMatchers("/radmParmScanBase")
+				.hasAnyRole("paramScanBaseRead","paramScanBaseWrite")
+				.antMatchers("/maintainParmRedFlag")
+				.hasAnyRole("paramRedFlagRead","paramRedFlagWrite")
+				.antMatchers("/maintainVCnclRsnCd")
+				.hasAnyRole("paramMaintainVCnclRsnCdRead","paramMaintainVCnclRsnCdWrite")
+				.antMatchers("/maintainParmMiscRsn")
+				.hasAnyRole("paramMaintainParmMiscRsnRead","paramMaintainParmMiscRsnWrite")
+				.antMatchers("/maiRiskCalculation")
+				.hasAnyRole("paramMaiRiskCalculationRead","paramMaiRiskCalculationWrite")
+				.antMatchers("/tmrParameter")
+				.hasAnyRole("paramTmrParameterRead","paramTmrParameterWrite")
+				.antMatchers("/evenAmtParameter")
+				.hasAnyRole("paramEvenAmtParameterRead","paramEvenAmtParameterWrite")
+				.antMatchers("/maintainCheckParm")
+				.hasAnyRole("paramMaintainCheckParmRead","paramMaintainCheckParmWrite")
+				.antMatchers("/maintainProgExpCd")
+				.hasAnyRole("paramMaintainProgExpCdRead","paramMaintainProgExpCdWrite")
+				.antMatchers("/clientBnkOmaha")
+				.hasAnyRole("paramClientBnkOmahaRead","paramClientBnkOmahaWrite")
+				// Hierarchy
+				.antMatchers("/unitGroupings")
+				.hasAnyRole("hierUnitGroupingsRead","hierUnitGroupingsWrite")
+				.antMatchers("/portfolioToChanlIndList")
+				.hasAnyRole("hierPortfolioToChanlIndMapRead","hierPortfolioToChanlIndMapWrite")
+				.antMatchers("/portfolioToMarkerLevelList")
+				.hasAnyRole("hierPortfolioToMarkerLevelRead","hierPortfolioToMarkerLevelWrite")
+				.antMatchers("/getHierarchyTree")
+				.hasAnyRole("hierGetHierarchyTreeRead")
+				.antMatchers("/maintainMrkrVsProdCd")
+				.hasAnyRole("hierMaintainMrkrVsProdCdRead","hierMaintainMrkrVsProdCdWrite")
+				.antMatchers("/flow")
+				.hasAnyRole("hierDsFlowRead","hierDsFlowWrite")
+				// Rules and Report
+				.antMatchers("/ruleBrowserInitialLoad")
+				.hasAnyRole("ruleReportRead", "ruleReportWrite")
+				.antMatchers("/reportBrowserInitialLoad")
+				.hasAnyRole("ruleReportRead", "ruleReportWrite")
+				.antMatchers("/loadRuleBatchTestInitialLoad")
+				.hasAnyRole("ruleReportRead", "ruleReportWrite")
+				.antMatchers("/ruleCatBrowserInitialLoad")
+				.hasAnyRole("ruleReportRead", "ruleReportWrite")
+				.antMatchers("/ruleTypBrowserInitialLoad")
+				.hasAnyRole("ruleReportRead", "ruleReportWrite")
+				// Dslr Config
+				.antMatchers("/maintainDslrTables")
+				.hasAnyRole("dslrTableRead","dslrTableWrite")
+				// G2 Web Monitoring
+				.antMatchers("/g2Uploads")
+				.hasAnyRole("g2WebMonitoring")
+				//User Maintenance
+				.antMatchers("/userMaintenance")
+				.hasAnyRole("userMaintenance")
+				.antMatchers("/privilegeMaintenance")
+				.hasAnyRole("userMaintenance")
+				.antMatchers("/viewUserRoles")
+				.hasAnyRole("userMaintenance")
+				// Login/Error/Logout
+				.anyRequest().authenticated().and().formLogin().loginPage("/")
+				.loginProcessingUrl("/login").usernameParameter("username").passwordParameter("password")
+				.failureUrl("/loginError").defaultSuccessUrl("/home", true).permitAll().and().logout()
+				.logoutUrl("/logout").logoutSuccessUrl("/").permitAll().and().exceptionHandling()
+				.accessDeniedPage("/error");
+		http.sessionManagement().invalidSessionUrl("/");
+		//http.headers().contentSecurityPolicy("default-src 'self' 'unsafe-inline' http: https:; script-src 'self' 'unsafe-inline' http: https:; style-src 'self' 'unsafe-inline' http: https:; img-src 'self' 'unsafe-inline' http: https: data:;");
+	}
+
+	@Autowired
+	protected void configure(AuthenticationManagerBuilder auth) {
+		auth.authenticationProvider(delegateAuthProvider);
+//		auth.authenticationProvider(customAuthProvider);
+	}
+
+	@Override
+	public void configure(WebSecurity web) throws Exception {
+		web.ignoring().antMatchers("/resources/**", "/css/**");
+	}
+
+}
+
+package com.fiserv.radm.security;
+
+import java.util.Hashtable;
+import java.util.Map.Entry;
+import java.util.Set;
+
+import javax.naming.Context;
+import javax.naming.NamingException;
+import javax.naming.ldap.InitialLdapContext;
+import javax.naming.ldap.LdapContext;
+
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.dao.AbstractUserDetailsAuthenticationProvider;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Component;
+
+import com.fiserv.radm.entity.User;
+import com.fiserv.radm.entity.UserPrincipal;
+import com.fiserv.radm.repository.UserRepo;
+
+@Component
+public class DelegatingAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider {
+	private static String OS = System.getProperty("os.name").toLowerCase();
+	private final static String contextFactory = "com.sun.jndi.ldap.LdapCtxFactory";
+	private static Logger logger = Logger.getLogger(DelegatingAuthenticationProvider.class);
+	@Autowired
+	UserRepo userRepo;
+	@Value("${ldapURL}")
+	private String url;
+	@Value("${ldapDomain}")
+	private String domain;
+	@Value("${ldapTimeOut}")
+	private String authTimeOut;
+
+	@Override
+	protected void additionalAuthenticationChecks(UserDetails userDetails,
+			UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
+		String username = authentication.getName();
+		try {
+			if (!OS.contains("win"))
+				authenticate(username, authentication.getCredentials().toString(), authTimeOut);
+		} catch (NamingException e) {
+			e.printStackTrace();
+			throw new UsernameNotFoundException("1dc authentication failed", e);
+		}
+	}
+
+	@Override
+	protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication)
+			throws AuthenticationException {
+		UserPrincipal userPrincipal = null;
+		try {
+			username = username.toUpperCase();
+			User user = userRepo.findByUsername(username).orElse(null);
+			if (user == null)
+				throw new UsernameNotFoundException("Username is not valid");
+			userPrincipal = new UserPrincipal(user);
+//			if (!authenticate(username, authentication.getCredentials().toString(), authTimeOut))
+//				throw new LdapAuthenticationException("1dc authentication failed");
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new UsernameNotFoundException("Username is not valid");
+		}
+		return userPrincipal;
+	}
+
+	public boolean authenticate(String username, String password, String authTimeOut) throws NamingException {
+		boolean flag = false;
+		Hashtable<String, Object> env = new Hashtable<String, Object>();
+		env.put(Context.SECURITY_AUTHENTICATION, "simple");
+		env.put(Context.SECURITY_PRINCIPAL, username + "@" + domain);
+		env.put(Context.SECURITY_CREDENTIALS, password);
+
+		Set<Entry<String, Object>> e = env.entrySet();
+		for (Entry<String, Object> entry : e) {
+			if (!entry.getKey().equals(Context.SECURITY_CREDENTIALS))
+				logger.debug("LDAP env values: " + entry.getKey() + ": " + entry.getValue());
+		}
+		ldapContext(env, authTimeOut);
+		flag = true;
+		return flag;
+	}
+
+	private LdapContext ldapContext(Hashtable<String, Object> env, String authTimeOut) throws NamingException {
+		env.put(Context.INITIAL_CONTEXT_FACTORY, contextFactory);
+		env.put(Context.PROVIDER_URL, url);
+		env.put(Context.SECURITY_PROTOCOL, "TLSv1.2");
+		env.put("com.sun.jndi.ldap.connect.timeout", authTimeOut);
+		return new InitialLdapContext(env, null);
+	}
+}
+package com.fiserv.radm.entity;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+public class UserPrincipal implements UserDetails {
+	private static final long serialVersionUID = 1L;
+	private User user;
+	private List<GrantedAuthority> authorities;
+	private List<String> instances;
+
+	public UserPrincipal(User user) {
+		this.user = user;
+	}
+
+	public void setAuthorities(List<GrantedAuthority> authorities) {
+		this.authorities = (List<GrantedAuthority>) authorities;
+	}
+
+	@Override
+	public Collection<? extends GrantedAuthority> getAuthorities() {
+		authorities = new ArrayList<GrantedAuthority>();
+
+		// Extract list of roles with ROLE_ as prefix
+		this.user.getUserRoles().forEach(role -> {
+			GrantedAuthority auth = new SimpleGrantedAuthority("ROLE_" + role.getUserRole());
+			authorities.add(auth);
+		});
+		
+		Set<String> menuRoles = new HashSet<String>();
+		for (UserRoles role : this.user.getUserRoles()) {
+			if (role.getUserRole().startsWith("hier")) {
+				menuRoles.add("hier");
+			} else if (role.getUserRole().startsWith("param")) {
+				menuRoles.add("param");
+			} else if (role.getUserRole().startsWith("ruleReport")) {
+				menuRoles.add("ruleReport");
+			}
+		}
+		
+		menuRoles.forEach(role -> {
+			GrantedAuthority auth = new SimpleGrantedAuthority("ROLE_" + role);
+			authorities.add(auth);
+		});
+
+		return authorities;
+	}
+
+	public List<String> getInstances() {
+
+		// Extract list of instances using the GrantedAuthority
+		// Tweaking the GrantedAuthority usually used for Permissions and Roles but using them for Instances
+		
+		instances = new ArrayList<String>();
+		this.user.getUserInstances().forEach(instance -> {
+			instances.add(instance.getUserInstc());
+		});
+		return instances;
+	}
+
+	public User getUser() {
+		return user;
+	}
+
+	public void setUser(User user) {
+		this.user = user;
+	}
+
+	@Override
+	public String getPassword() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public String getUsername() {
+		// TODO Auto-generated method stub
+		return this.user.getUsername();
+	}
+
+	@Override
+	public boolean isAccountNonExpired() {
+		// TODO Auto-generated method stub
+		return true;
+	}
+
+	@Override
+	public boolean isAccountNonLocked() {
+		// TODO Auto-generated method stub
+		return true;
+	}
+
+	@Override
+	public boolean isCredentialsNonExpired() {
+		// TODO Auto-generated method stub
+		return true;
+	}
+
+	@Override
+	public boolean isEnabled() {
+		// TODO Auto-generated method stub
+		return user.getIsactive().equals("Y");
+	}
+
+}
