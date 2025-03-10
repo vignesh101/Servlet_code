@@ -480,3 +480,198 @@ public class LoginController {
 	</footer>
 </body>
 </html>
+
+package com.radm.security;
+
+import com.microsoft.aad.msal4j.*;
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.stereotype.Service;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URL;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
+@Service
+@PropertySource("classpath:application.properties")
+public class MsalService {
+
+    private static final Logger logger = Logger.getLogger(MsalService.class);
+
+    @Value("${azure.ad.client-id}")
+    private String clientId;
+
+    @Value("${azure.ad.client-secret}")
+    private String clientSecret;
+
+    @Value("${azure.ad.tenant-id}")
+    private String tenantId;
+
+    @Value("${azure.ad.issuer-uri}")
+    private String issuerUri;
+
+    @Value("${azure.ad.redirect-uri}")
+    private String redirectUri;
+
+    @Value("${azure.ad.graph-api}")
+    private String graphApi;
+
+    private IConfidentialClientApplication clientApp;
+
+    // Define the scopes we need for the application
+    private static final Set<String> SCOPES = Collections.unmodifiableSet(new HashSet<String>() {
+        private static final long serialVersionUID = 1L;
+        {
+            add("User.Read");
+            add("profile");
+            add("email");
+            add("openid");
+        }
+    });
+
+    /**
+     * Get the MSAL client application instance (create if not exists)
+     */
+    public synchronized IConfidentialClientApplication getClient() throws Exception {
+        if (clientApp == null) {
+            logger.info("Initializing MSAL client application with tenant ID: " + tenantId);
+            
+            // Replace any placeholders in the issuer URI
+            String authority = issuerUri.replace("{tenant-id}", tenantId);
+            
+            logger.debug("Building confidential client application with authority: " + authority);
+            clientApp = ConfidentialClientApplication.builder(
+                    clientId,
+                    ClientCredentialFactory.createFromSecret(clientSecret))
+                    .authority(authority)
+                    .build();
+        }
+        return clientApp;
+    }
+
+    /**
+     * Generate the authorization URL to redirect the user to Azure AD login
+     */
+    public String getAuthorizationCodeUrl(String state, String nonce) throws Exception {
+        logger.debug("Building authorization request URL with redirect URI: " + redirectUri);
+        
+        AuthorizationRequestUrlParameters parameters = AuthorizationRequestUrlParameters
+                .builder(redirectUri, SCOPES)
+                .state(state)
+                .nonce(nonce)
+                .responseMode(ResponseMode.QUERY)
+                .prompt(Prompt.SELECT_ACCOUNT)
+                .build();
+
+        return getClient().getAuthorizationRequestUrl(parameters).toString();
+    }
+
+    /**
+     * Exchange the authorization code for tokens
+     */
+    public IAuthenticationResult acquireToken(String authCode) throws Exception {
+        logger.debug("Acquiring token with authorization code");
+        
+        try {
+            AuthorizationCodeParameters parameters = AuthorizationCodeParameters
+                    .builder(authCode, new URI(redirectUri))
+                    .scopes(SCOPES)
+                    .build();
+
+            CompletableFuture<IAuthenticationResult> future = getClient().acquireToken(parameters);
+            return future.get();
+        } catch (ExecutionException e) {
+            logger.error("Error acquiring token", e);
+            Throwable cause = e.getCause();
+            if (cause instanceof MsalException) {
+                logger.error("MSAL Exception: " + cause.getMessage());
+                throw (MsalException) cause;
+            } else {
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Get current account info
+     */
+    public IAccount getCurrentAccount() throws Exception {
+        logger.debug("Getting current account");
+        Set<IAccount> accounts = getClient().getAccounts().join();
+        return accounts.isEmpty() ? null : accounts.iterator().next();
+    }
+
+    /**
+     * Get user information from Microsoft Graph API
+     */
+    public String getUserInfo(String accessToken) throws IOException {
+        logger.debug("Getting user info from Microsoft Graph API");
+        
+        URL url = new URL(graphApi);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        try {
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+            conn.setRequestProperty("Accept", "application/json");
+
+            // Check for error response code
+            int responseCode = conn.getResponseCode();
+            logger.debug("Microsoft Graph API response code: " + responseCode);
+            
+            if (responseCode >= 400) {
+                try (BufferedReader errorReader = new BufferedReader(
+                        new InputStreamReader(conn.getErrorStream()))) {
+                    StringBuilder errorResponse = new StringBuilder();
+                    String line;
+                    while ((line = errorReader.readLine()) != null) {
+                        errorResponse.append(line);
+                    }
+                    String error = errorResponse.toString();
+                    logger.error("Error from Microsoft Graph API: " + responseCode + " - " + error);
+                    throw new IOException("Error from Microsoft Graph API: " + responseCode + " - " + error);
+                }
+            }
+
+            // Read successful response
+            StringBuilder response = new StringBuilder();
+            try (BufferedReader br = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream()))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    response.append(line);
+                }
+            }
+            
+            logger.debug("Successfully retrieved user info from Microsoft Graph API");
+            return response.toString();
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    /**
+     * Generate a random state value for OAuth2 flow
+     */
+    public static String generateState() {
+        return generateSecureString(32);
+    }
+
+    /**
+     * Generate a random secure string
+     */
+    private static String generateSecureString(int length) {
+        byte[] bytes = new byte[length];
+        new java.security.SecureRandom().nextBytes(bytes);
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+}
