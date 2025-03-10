@@ -1,0 +1,48 @@
+flowchart TD
+    A[User Enters Credentials] --> B[Login Form Submit]
+    B --> C[Spring Security Filter Chain]
+    C --> D{Is Valid Request?}
+    D -->|No| E[Redirect to Login Error]
+    D -->|Yes| F[DelegatingAuthenticationProvider]
+    F --> G[retrieveUser Method]
+    G --> H{User Exists in DB?}
+    H -->|No| I[UsernameNotFoundException]
+    I --> E
+    H -->|Yes| J[Create UserPrincipal]
+    J --> K[additionalAuthenticationChecks]
+    K --> L{Is Windows OS?}
+    L -->|Yes| N[Skip LDAP Auth]
+    L -->|No| M[LDAP Authentication]
+    M --> O{LDAP Auth Success?}
+    O -->|No| P[Authentication Failed]
+    P --> E
+    O -->|Yes| N
+    N --> Q[Authentication Success]
+    Q --> R[Set User Authorities/Roles]
+    R --> S[Access Control Check]
+    S --> T{Has Required Role?}
+    T -->|No| U[Access Denied Page]
+    T -->|Yes| V[Access Granted to Resource]
+    
+    subgraph Authentication Process
+    F
+    G
+    H
+    I
+    J
+    K
+    L
+    M
+    N
+    O
+    P
+    Q
+    end
+    
+    subgraph Authorization Process
+    R
+    S
+    T
+    U
+    V
+    end
