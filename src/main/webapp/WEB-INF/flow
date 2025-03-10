@@ -1,48 +1,482 @@
-flowchart TD
-    A[User Enters Credentials] --> B[Login Form Submit]
-    B --> C[Spring Security Filter Chain]
-    C --> D{Is Valid Request?}
-    D -->|No| E[Redirect to Login Error]
-    D -->|Yes| F[DelegatingAuthenticationProvider]
-    F --> G[retrieveUser Method]
-    G --> H{User Exists in DB?}
-    H -->|No| I[UsernameNotFoundException]
-    I --> E
-    H -->|Yes| J[Create UserPrincipal]
-    J --> K[additionalAuthenticationChecks]
-    K --> L{Is Windows OS?}
-    L -->|Yes| N[Skip LDAP Auth]
-    L -->|No| M[LDAP Authentication]
-    M --> O{LDAP Auth Success?}
-    O -->|No| P[Authentication Failed]
-    P --> E
-    O -->|Yes| N
-    N --> Q[Authentication Success]
-    Q --> R[Set User Authorities/Roles]
-    R --> S[Access Control Check]
-    S --> T{Has Required Role?}
-    T -->|No| U[Access Denied Page]
-    T -->|Yes| V[Access Granted to Resource]
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.builders.WebSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import com.radm.security.AzureAdAuthenticationFilter;
+import com.radm.security.AzureAdLogoutSuccessHandler;
+import com.radm.security.MsalService;
+
+@Configuration
+@EnableWebSecurity(debug = true)
+@ComponentScan(basePackages = "com.fiserv.radm")
+public class WebSecurityConfiguration extends WebSecurityConfigurerAdapter {
+
+    @Autowired
+    private MsalService msalService;
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http
+            .csrf().disable()
+            .authorizeRequests()
+                .antMatchers("/", "/login", "/login/callback", "/logout").permitAll()
+                
+                // Parameters
+                .antMatchers("/markerBank").hasAnyRole("paramMarkerBankRead","paramMarkerBankWrite")
+                .antMatchers("/maintainParameter").hasAnyRole("paramMaintainParameterRead","paramMaintainParameterWrite")
+                .antMatchers("/clearingBank").hasAnyRole("paramClearingBankRead","paramClearingBankWrite")
+                .antMatchers("/groupName").hasAnyRole("paramGroupNameRead","paramGroupNameWrite")
+                .antMatchers("/agentISOBank").hasAnyRole("paramAgentISOBankRead","paramAgentISOBankWrite")
+                .antMatchers("/initialParamXcludeList").hasAnyRole("paramBlazeMerchExcludRead","paramBlazeMerchExcludWrite")
+                .antMatchers("/parmBlazeExclud").hasAnyRole("paramBlazePortExcludRead","paramBlazePortExcludWrite")
+                .antMatchers("/viewWatchDef").hasAnyRole("paramMaintainWatchlistRead","paramMaintainDeferralRead","paramMaintainWatchlistWrite","paramMaintainDeferralWrite")
+                .antMatchers("/maintainWatchlist").hasAnyRole("paramMaintainWatchlistRead","paramMaintainWatchlistWrite")
+                .antMatchers("/maintainDeferral").hasAnyRole("paramMaintainDeferralRead","paramMaintainDeferralWrite")
+                .antMatchers("/maintainChrgbckRsnCd").hasAnyRole("paramMaintainChrgbckRsnCdRead","paramMaintainChrgbckRsnCdWrite")
+                .antMatchers("/paramXchangeRte").hasAnyRole("paramXchangeRteRead","paramXchangeRteWrite")
+                .antMatchers("/parmUpdtScanOfbase").hasAnyRole("paramUpdtScanOfbaseRead","paramUpdtScanOfbaseWrite")
+                .antMatchers("/maintainBlazeCode").hasAnyRole("paramMaintainBlazeCodeRead","paramMaintainBlazeCodeWrite")
+                .antMatchers("/parmBAMcutLimits").hasAnyRole("paramBAMcutLimitsRead","paramBAMcutLimitsWrite")
+                .antMatchers("/parmSICCode").hasAnyRole("paramSICCodeRead","paramSICCodeWrite")
+                .antMatchers("/parmSrcTypInitialLoad").hasAnyRole("paramSrcTypInitialLoadRead","paramSrcTypInitialLoadWrite")
+                .antMatchers("/radmParmAchRjck").hasAnyRole("paramAchRjckRead","paramAchRjckWrite")
+                .antMatchers("/radmParmScanBase").hasAnyRole("paramScanBaseRead","paramScanBaseWrite")
+                .antMatchers("/maintainParmRedFlag").hasAnyRole("paramRedFlagRead","paramRedFlagWrite")
+                .antMatchers("/maintainVCnclRsnCd").hasAnyRole("paramMaintainVCnclRsnCdRead","paramMaintainVCnclRsnCdWrite")
+                .antMatchers("/maintainParmMiscRsn").hasAnyRole("paramMaintainParmMiscRsnRead","paramMaintainParmMiscRsnWrite")
+                .antMatchers("/maiRiskCalculation").hasAnyRole("paramMaiRiskCalculationRead","paramMaiRiskCalculationWrite")
+                .antMatchers("/tmrParameter").hasAnyRole("paramTmrParameterRead","paramTmrParameterWrite")
+                .antMatchers("/evenAmtParameter").hasAnyRole("paramEvenAmtParameterRead","paramEvenAmtParameterWrite")
+                .antMatchers("/maintainCheckParm").hasAnyRole("paramMaintainCheckParmRead","paramMaintainCheckParmWrite")
+                .antMatchers("/maintainProgExpCd").hasAnyRole("paramMaintainProgExpCdRead","paramMaintainProgExpCdWrite")
+                .antMatchers("/clientBnkOmaha").hasAnyRole("paramClientBnkOmahaRead","paramClientBnkOmahaWrite")
+                
+                // Hierarchy
+                .antMatchers("/unitGroupings").hasAnyRole("hierUnitGroupingsRead","hierUnitGroupingsWrite")
+                .antMatchers("/portfolioToChanlIndList").hasAnyRole("hierPortfolioToChanlIndMapRead","hierPortfolioToChanlIndMapWrite")
+                .antMatchers("/portfolioToMarkerLevelList").hasAnyRole("hierPortfolioToMarkerLevelRead","hierPortfolioToMarkerLevelWrite")
+                .antMatchers("/getHierarchyTree").hasAnyRole("hierGetHierarchyTreeRead")
+                .antMatchers("/maintainMrkrVsProdCd").hasAnyRole("hierMaintainMrkrVsProdCdRead","hierMaintainMrkrVsProdCdWrite")
+                .antMatchers("/flow").hasAnyRole("hierDsFlowRead","hierDsFlowWrite")
+                
+                // Rules and Report
+                .antMatchers("/ruleBrowserInitialLoad").hasAnyRole("ruleReportRead", "ruleReportWrite")
+                .antMatchers("/reportBrowserInitialLoad").hasAnyRole("ruleReportRead", "ruleReportWrite")
+                .antMatchers("/loadRuleBatchTestInitialLoad").hasAnyRole("ruleReportRead", "ruleReportWrite")
+                .antMatchers("/ruleCatBrowserInitialLoad").hasAnyRole("ruleReportRead", "ruleReportWrite")
+                .antMatchers("/ruleTypBrowserInitialLoad").hasAnyRole("ruleReportRead", "ruleReportWrite")
+                
+                // Dslr Config
+                .antMatchers("/maintainDslrTables").hasAnyRole("dslrTableRead","dslrTableWrite")
+                
+                // G2 Web Monitoring
+                .antMatchers("/g2Uploads").hasAnyRole("g2WebMonitoring")
+                
+                //User Maintenance
+                .antMatchers("/userMaintenance").hasAnyRole("userMaintenance")
+                .antMatchers("/privilegeMaintenance").hasAnyRole("userMaintenance")
+                .antMatchers("/viewUserRoles").hasAnyRole("userMaintenance")
+                
+                .anyRequest().authenticated()
+            .and()
+            .exceptionHandling()
+                .accessDeniedPage("/error")
+            .and()
+            .logout()
+                .logoutUrl("/logout")
+                .logoutSuccessHandler(logoutSuccessHandler())
+                .permitAll()
+            .and()
+            .sessionManagement()
+                .invalidSessionUrl("/");
+
+        // Add Azure AD authentication filter
+        http.addFilterBefore(azureAdAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+    }
+
+    @Bean
+    public AzureAdAuthenticationFilter azureAdAuthenticationFilter() throws Exception {
+        AzureAdAuthenticationFilter filter = new AzureAdAuthenticationFilter(msalService);
+        filter.setAuthenticationSuccessHandler(authenticationSuccessHandler());
+        return filter;
+    }
+
+    @Bean
+    public SimpleUrlAuthenticationSuccessHandler authenticationSuccessHandler() {
+        SimpleUrlAuthenticationSuccessHandler handler = new SimpleUrlAuthenticationSuccessHandler();
+        handler.setDefaultTargetUrl("/home");
+        return handler;
+    }
+
+    @Bean
+    public LogoutSuccessHandler logoutSuccessHandler() {
+        return new AzureAdLogoutSuccessHandler(msalService);
+    }
+
+    @Override
+    public void configure(WebSecurity web) throws Exception {
+        web.ignoring().antMatchers("/resources/**", "/css/**", "/js/**", "/images/**");
+    }
+}  
+
+
+package com.radm.security;
+
+import com.microsoft.aad.msal4j.IAuthenticationResult;
+import com.radm.entity.User;
+import com.radm.entity.UserPrincipal;
+import com.radm.repository.UserRepo;
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.util.StringUtils;
+
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.io.IOException;
+import java.util.Optional;
+
+public class AzureAdAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
+
+    private static Logger logger = Logger.getLogger(AzureAdAuthenticationFilter.class);
+
+    @Autowired
+    private UserRepo userRepo;
     
-    subgraph Authentication Process
-    F
-    G
-    H
-    I
-    J
-    K
-    L
-    M
-    N
-    O
-    P
-    Q
-    end
+    private MsalService msalService;
     
-    subgraph Authorization Process
-    R
-    S
-    T
-    U
-    V
-    end
+    private static final String STATE_PARAMETER = "state";
+    private static final String CODE_PARAMETER = "code";
+    private static final String SESSION_STATE = "oauthState";
+    private static final String SESSION_NONCE = "nonce";
+    private static final String SESSION_USER_PRINCIPAL = "userPrincipal";
+
+    public AzureAdAuthenticationFilter(MsalService msalService) {
+        super(new AntPathRequestMatcher("/login/callback", "GET"));
+        this.msalService = msalService;
+    }
+    
+    @Override
+    public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession();
+        String expectedState = (String) session.getAttribute(SESSION_STATE);
+        String actualState = request.getParameter(STATE_PARAMETER);
+        String authCode = request.getParameter(CODE_PARAMETER);
+        
+        // Validate state parameter to prevent CSRF
+        if (!StringUtils.hasText(expectedState) || !expectedState.equals(actualState)) {
+            logger.error("Invalid state parameter");
+            throw new RuntimeException("Invalid state parameter");
+        }
+        
+        try {
+            // Exchange authorization code for tokens
+            IAuthenticationResult authResult = msalService.acquireToken(authCode);
+            
+            // Get user info from access token
+            String userInfoJson = msalService.getUserInfo(authResult.accessToken());
+            String username = extractUsernameFromUserInfo(userInfoJson);
+            
+            // Load user from database for authorization roles
+            Optional<User> userOpt = userRepo.findByUsername(username.toUpperCase());
+            if (!userOpt.isPresent()) {
+                logger.error("User not found in database: " + username);
+                throw new RuntimeException("User not authorized");
+            }
+            
+            User user = userOpt.get();
+            if (!"Y".equals(user.getIsactive())) {
+                logger.error("User account is not active: " + username);
+                throw new RuntimeException("User account is inactive");
+            }
+            
+            // Create user principal and authentication token
+            UserPrincipal userPrincipal = new UserPrincipal(user);
+            UsernamePasswordAuthenticationToken authentication = 
+                new UsernamePasswordAuthenticationToken(userPrincipal, null, userPrincipal.getAuthorities());
+            
+            // Store tokens and user info in session
+            session.setAttribute(SESSION_USER_PRINCIPAL, userPrincipal);
+            session.setAttribute("msalAuthResult", authResult);
+            
+            return authentication;
+            
+        } catch (Exception e) {
+            logger.error("Authentication failure", e);
+            throw new RuntimeException("Authentication failed", e);
+        }
+    }
+    
+    @Override
+    protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response,
+                                           FilterChain chain, Authentication authResult) 
+                                           throws IOException, ServletException {
+        
+        SecurityContextHolder.getContext().setAuthentication(authResult);
+        getSuccessHandler().onAuthenticationSuccess(request, response, authResult);
+    }
+    
+    private String extractUsernameFromUserInfo(String userInfoJson) {
+        // Simple extraction - in production, use proper JSON parsing
+        if (userInfoJson.contains("\"userPrincipalName\":")) {
+            int start = userInfoJson.indexOf("\"userPrincipalName\":") + "\"userPrincipalName\":\"".length();
+            int end = userInfoJson.indexOf("\"", start);
+            String upn = userInfoJson.substring(start, end);
+            
+            // Extract username from UPN (email format)
+            if (upn.contains("@")) {
+                return upn.substring(0, upn.indexOf("@"));
+            }
+            return upn;
+        }
+        throw new RuntimeException("Could not extract username from user info");
+    }
+}
+
+
+package com.radm.security;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.io.IOException;
+
+public class AzureAdLogoutSuccessHandler implements LogoutSuccessHandler {
+
+    private MsalService msalService;
+    
+    @Value("${azure.ad.post-logout-redirect-uri}")
+    private String postLogoutRedirectUri;
+    
+    @Value("${azure.ad.logout-url}")
+    private String logoutUrl;
+
+    public AzureAdLogoutSuccessHandler(MsalService msalService) {
+        this.msalService = msalService;
+    }
+
+    @Override
+    public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response, 
+                               Authentication authentication) throws IOException, ServletException {
+        
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+        
+        // Construct Azure AD logout URL
+        String redirectUrl = logoutUrl + "?post_logout_redirect_uri=" + postLogoutRedirectUri;
+        response.sendRedirect(redirectUrl);
+    }
+}
+
+package com.radm.controller;
+
+import com.radm.security.MsalService;
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.servlet.view.RedirectView;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
+
+@Controller
+public class LoginController {
+
+    private static Logger logger = Logger.getLogger(LoginController.class);
+
+    @Autowired
+    private MsalService msalService;
+
+    private static final String SESSION_STATE = "oauthState";
+    private static final String SESSION_NONCE = "nonce";
+
+    @GetMapping("/")
+    public String index() {
+        return "index";
+    }
+
+    @RequestMapping("/login")
+    public RedirectView login(HttpServletRequest request) {
+        try {
+            HttpSession session = request.getSession(true);
+            
+            // Generate state and nonce parameters for OAuth flow
+            String state = MsalService.generateState();
+            String nonce = MsalService.generateState(); // Using same generation method for nonce
+            
+            // Store them in session for validation when Azure AD calls back
+            session.setAttribute(SESSION_STATE, state);
+            session.setAttribute(SESSION_NONCE, nonce);
+            
+            // Get authorization URL from Azure AD
+            String authUrl = msalService.getAuthorizationCodeUrl(state, nonce);
+            
+            // Redirect to Azure AD login page
+            return new RedirectView(authUrl);
+            
+        } catch (Exception e) {
+            logger.error("Error initiating Azure AD login flow", e);
+            return new RedirectView("/?error=login_failed");
+        }
+    }
+
+    @GetMapping("/error")
+    public String error(Model model) {
+        model.addAttribute("returnMessge", "Access Denied");
+        return "index";
+    }
+
+    @GetMapping("/loginError")
+    public String loginError(Model model) {
+        model.addAttribute("returnMessge", "Invalid credentials");
+        return "index";
+    }
+}
+
+<!DOCTYPE html>
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+	pageEncoding="ISO-8859-1" isELIgnored="false"%>
+<html>
+<head>
+<link rel="stylesheet"
+	href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+<link rel="stylesheet"
+	href="<%=request.getContextPath()%>/resources/css/footer.css"></link>
+<link rel="stylesheet"
+	href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
+<link rel="stylesheet"
+	href="<%=request.getContextPath()%>/resources/css/login.css">
+<!--  Toastr notifications -->
+<link href="<%=request.getContextPath()%>/resources/css/toastr.min.css"
+	rel="stylesheet">
+<link href="<%=request.getContextPath()%>/resources/css/styles.css"
+	rel="stylesheet">
+<script type="text/javascript" src="<%=request.getContextPath()%>/resources/js/common.js"></script>
+<link rel="stylesheet" href="<%=request.getContextPath()%>/resources/css/common.css" type="text/css">
+<script
+	src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+<script
+	src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="<%=request.getContextPath()%>/resources/js/toastr.min.js"></script>
+<script type="text/javascript">
+	toastr.options.preventDuplicates = true;
+	toastr.options = {
+		"preventDuplicates" : true,
+		"closeButton" : true,
+		"debug" : false,
+		"newestOnTop" : true,
+		"progressBar" : true,
+		"positionClass" : "toast-top-right",
+		"onclick" : null,
+		"showDuration" : "250",
+		"hideDuration" : "1000",
+		"timeOut" : "5000",
+		"extendedTimeOut" : "0",
+		"showEasing" : "swing",
+		"hideEasing" : "linear",
+		"showMethod" : "fadeIn",
+		"hideMethod" : "fadeOut"
+	}
+</script>
+</head>
+<body style="overflow: hidden;">
+	<div class="wrapper">
+		<nav class="navbar navbar-default navTopBar">
+			<div class="container-fluid">
+				<div class="col-md-1">
+					<img src="<%=request.getContextPath()%>/resources/images/logo1.png"
+						alt="Fiserv Logo">
+				</div>
+				<div class="col-md-3">
+					<div class="navbar-header">
+						<a class="navbar-brand navHeader"> Risk Aggregation &amp;
+							Detection Administration </a>
+					</div>
+				</div>
+				<div class="col-md-4"></div>
+				<div class="col-md-3">
+				</div>
+			</div>
+			<div id="loader-spinner"></div>
+		</nav>
+		<div class="wrapperLogin fadeInDown">
+			<div id="formContent">
+				<!-- Tabs Titles -->
+				<!-- Icon -->
+				<div class="fadeIn first heading">
+					<h3>RAD Administration</h3>
+				</div>
+				
+				<!-- Error message if any -->
+				<div class="error">
+					<p style="margin-bottom: 0rem;">${returnMessge}</p>
+				</div>
+				
+				<!-- Azure AD Login Button -->
+				<div style="margin: 25px;">
+					<a href="<%=request.getContextPath()%>/login" class="btn btn-primary loginBtn" style="width: 220px;">
+						<i class="fab fa-microsoft mr-2"></i> Sign in with Microsoft
+					</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<footer class="footer" id="footer"
+		style="position: absolute !important;">
+		<div class="container" style="padding-top: 10px;">
+			<ul>
+				<li style="color: white;"> <span id="copyrightYear">2020</span>
+					Fiserv, Inc. or its affiliates
+				</li>
+				<li><a data-bind="text: Title, attr: { href: ComputedUrl() }"
+					href="https://www.fiserv.com/en/about-fiserv/privacy-notice.html"
+					target="_blank">Privacy Policy</a></li>
+				<!-- /ko -->
+			</ul>
+
+			<div class="footer-logo">
+				<a href="http://www.fiserv.com" target="_blank"> <img
+					class="desktop"
+					src="<%=request.getContextPath()%>/resources/images/logo1.png"
+					alt="Fiserv Logo" width="58" height="30" data-themekey="#">
+				</a>
+			</div>
+
+			<script type="text/javascript">
+				var currentDate = new Date();
+				var currentYear = currentDate.getYear();
+				if (currentYear < 1000)
+					currentYear += 1900;
+
+				jQuery("#copyrightYear").html(currentYear);
+			</script>
+		</div>
+		<!--/container-->
+	</footer>
+</body>
+</html>
