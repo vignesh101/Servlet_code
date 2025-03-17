@@ -1,79 +1,61 @@
-package com.fiserv.radm.service;
-import com.microsoft.aad.msal4j.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.HashSet;
+package com.msal.filters;
+
+import com.microsoft.aad.msal4j.IAccount;
+import com.microsoft.aad.msal4j.IConfidentialClientApplication;
+import com.msal.log.DebugLogger;
+import com.msal.service.MsalService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
+import org.springframework.stereotype.Component;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.io.IOException;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-@Service
-public class MsalAuthService {
-    private static final Logger logger = LoggerFactory.getLogger(MsalAuthService.class);
-    @Value("${azure.ad.client-id}")
-    private String clientId;
-    @Value("${azure.ad.client-secret}")
-    private String clientSecret;
-    @Value("${azure.ad.tenant-id}")
-    private String tenantId;
-    @Value("${azure.ad.redirect-uri}")
-    private String redirectUri;
-    private static final Set<String> DEFAULT_SCOPES = new HashSet<String>() {{
-        add("User.Read");
-        add("profile");
-        add("email");
-        add("openid");
-    }};
-    public IConfidentialClientApplication buildConfidentialClientApplication() {
+
+@Component
+public class CustomLogoutSuccessHandler extends SimpleUrlLogoutSuccessHandler {
+
+    @Autowired
+    private MsalService msalService;
+
+    public CustomLogoutSuccessHandler() {
+        // Set default target URL for redirect after logout
+        setDefaultTargetUrl("/auth/login?logout=true");
+    }
+
+    @Override
+    public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response,
+                              Authentication authentication) throws IOException, ServletException {
+        HttpSession session = request.getSession(false);
+        
+        DebugLogger.log("Logout initiated");
+        
+        // Clean up MSAL resources
         try {
-            return ConfidentialClientApplication.builder(
-                    clientId,
-                    ClientCredentialFactory.createFromSecret(clientSecret))
-                    .authority("https://login.microsoftonline.com/" + tenantId)
-                    .build();
+            IConfidentialClientApplication client = msalService.getClient();
+            Set<IAccount> accounts = client.getAccounts().join();
+            DebugLogger.log("Found " + accounts.size() + " accounts in cache to remove");
+
+            for (IAccount account : accounts) {
+                DebugLogger.log("Removing account: " + account.homeAccountId());
+                client.removeAccount(account).join();
+            }
         } catch (Exception e) {
-            logger.error("Error building confidential client application", e);
-            throw new RuntimeException("Failed to build MSAL application", e);
+            DebugLogger.log("Error clearing MSAL cache: " + e.getMessage());
         }
-    }
-    public String getAuthorizationUrl(String state, String nonce) {
-        try {
-            IConfidentialClientApplication app = buildConfidentialClientApplication();
-            AuthorizationRequestUrlParameters parameters = AuthorizationRequestUrlParameters
-                    .builder(redirectUri, DEFAULT_SCOPES)
-                    .state(state)  // Will be returned to your app for validation
-                    .nonce(nonce)  // Will be included in the ID token for validation
-                    .responseMode(ResponseMode.FORM_POST)  // How Azure AD should return the response
-                    .prompt(Prompt.SELECT_ACCOUNT)  // Forces the user to select an account
-                    .build();
-            return app.getAuthorizationRequestUrl(parameters).toString();
-        } catch (Exception e) {
-            logger.error("Error generating authorization URL", e);
-            throw new RuntimeException("Failed to generate authorization URL", e);
+
+        // Clear custom session attributes if session exists
+        if (session != null) {
+            session.removeAttribute("userInfo");
+            session.removeAttribute("auth_state");
+            session.removeAttribute("auth_nonce");
         }
+
+        // Call the parent method to handle the redirect
+        super.onLogoutSuccess(request, response, authentication);
     }
-    public IAuthenticationResult acquireTokenByAuthorizationCode(String authorizationCode) {
-        try {
-            IConfidentialClientApplication app = buildConfidentialClientApplication();
-            AuthorizationCodeParameters parameters = AuthorizationCodeParameters
-                    .builder(authorizationCode, new URI(redirectUri))
-                    .scopes(DEFAULT_SCOPES)
-                    .build();
-            // Execute the token request
-            CompletableFuture<IAuthenticationResult> future = app.acquireToken(parameters);
-            return future.get();  // Blocking call to wait for the token
-        } catch (ExecutionException | InterruptedException | URISyntaxException e) {
-            logger.error("Error acquiring token by authorization code", e);
-            throw new RuntimeException("Failed to acquire token", e);
-        }
-    }
-    public String getEmailFromAuthenticationResult(IAuthenticationResult result) {
-        if (result == null || result.account() == null) {
-            return null;
-        }
-        return result.account().username();
-    }
-} 
+}
