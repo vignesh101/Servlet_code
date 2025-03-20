@@ -1,3 +1,16 @@
+@Autowired
+private FilterChainProxy filterChainProxy;
+
+@PostConstruct
+public void init() {
+    List<Filter> filters = filterChainProxy.getFilters("/login/oauth2/code/microsoft");
+    DebugLogger.log("Filters for /login/oauth2/code/microsoft:");
+    for (int i = 0; i < filters.size(); i++) {
+        DebugLogger.log(i + ": " + filters.get(i).getClass().getName());
+    }
+}
+
+
 // Add this to the SecurityConfig.java class
 
 @Bean
