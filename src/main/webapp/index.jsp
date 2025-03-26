@@ -1,4 +1,14 @@
- // 4. Build the correct logout URL with Azure AD
+ boolean tokenExpired = false;
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            Object expiredObj = session.getAttribute("token_expired");
+            if (expiredObj != null && expiredObj instanceof Boolean) {
+                tokenExpired = (Boolean) expiredObj;
+            }
+        }
+
+
+// 4. Build the correct logout URL with Azure AD
         try {
             // Add the token expiration parameter to the post-logout redirect URI if needed
             String redirectUri = postLogoutRedirectUri;
