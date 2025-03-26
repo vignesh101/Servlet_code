@@ -1,3 +1,27 @@
+package com.msal.filters;
+
+import org.springframework.web.filter.OncePerRequestFilter;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+public class CacheControlFilter extends OncePerRequestFilter {
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, 
+                                   FilterChain filterChain) throws ServletException, IOException {
+        // Set no-cache headers for all pages
+        response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        response.setHeader("Pragma", "no-cache");
+        response.setHeader("Expires", "0");
+        
+        filterChain.doFilter(request, response);
+    }
+}
+
+
 try {
     // Modify the redirect URL based on whether this was a token expiration
     String redirectUri = isTokenExpired ? 
