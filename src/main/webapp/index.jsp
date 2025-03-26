@@ -1,4 +1,28 @@
- boolean tokenExpired = false;
+
+ try {
+            // Modify the redirect URI based on whether token expired
+            String redirectUri = postLogoutRedirectUri;
+            if (tokenExpired) {
+                // Check if the URI already has parameters
+                redirectUri += (redirectUri.contains("?") ? "&" : "?") + "expired=true";
+            }
+            
+            String encodedRedirectUri = URLEncoder.encode(redirectUri, StandardCharsets.UTF_8.toString());
+
+            String logoutUrl = logoutUri + "?post_logout_redirect_uri=" + encodedRedirectUri;
+
+            DebugLogger.log("Redirecting to logout URL: " + logoutUrl);
+            response.sendRedirect(logoutUrl);
+        } catch (Exception e) {
+            DebugLogger.log("Error during logout redirect: " + e.getMessage());
+            // Fall back to local logout
+            String redirectUrl = request.getContextPath() + "/auth/login?";
+            redirectUrl += tokenExpired ? "expired=true" : "logout=true";
+            response.sendRedirect(redirectUrl);
+        }
+
+
+boolean tokenExpired = false;
         HttpSession session = request.getSession(false);
         if (session != null) {
             Object expiredObj = session.getAttribute("token_expired");
