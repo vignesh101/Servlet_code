@@ -1,5 +1,64 @@
 package com.msal.filters;
 
+import com.msal.log.DebugLogger;
+import com.msal.model.UserProfile;
+
+import org.springframework.web.filter.OncePerRequestFilter;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.io.IOException;
+import java.time.Instant;
+
+public class TokenExpirationFilter extends OncePerRequestFilter {
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+
+        // Skip checking the logout URL itself to avoid redirect loops
+        String requestPath = request.getRequestURI();
+        if (requestPath.startsWith(request.getContextPath() + "/logout")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        HttpSession session = request.getSession(false);
+
+        if (session != null) {
+            UserProfile userProfile = (UserProfile) session.getAttribute("userInfo");
+
+            if (userProfile != null && userProfile.getTokenExpirationTime() > 0) {
+                long tokenExpirationTime = userProfile.getTokenExpirationTime();
+                long currentTime = Instant.now().getEpochSecond();
+
+                if (currentTime >= tokenExpirationTime) {
+                    DebugLogger.log("Token has expired for user: " + userProfile.getName() + ". Redirecting to logout endpoint.");
+                    
+                    // Store the fact that this is a token expiration in the session
+                    // so CustomLogoutHandler can use this information
+                    session.setAttribute("logout_reason", "token_expired");
+                    
+                    // Redirect to the logout endpoint - your CustomLogoutHandler will handle the rest
+                    response.sendRedirect(request.getContextPath() + "/logout");
+                    return;
+                }
+
+                // Update the remaining time in the user profile
+                long remainingSeconds = tokenExpirationTime - currentTime;
+                userProfile.setTokenExpiresInMinutes((int)Math.ceil(remainingSeconds / 60.0));
+            }
+        }
+
+        filterChain.doFilter(request, response);
+    }
+}
+
+
+package com.msal.filters;
+
 import com.microsoft.aad.msal4j.IAccount;
 import com.microsoft.aad.msal4j.IConfidentialClientApplication;
 import com.msal.log.DebugLogger;
