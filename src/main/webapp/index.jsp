@@ -1,4 +1,28 @@
-  try {
+ // 4. Build the correct logout URL with Azure AD
+        try {
+            // Add the token expiration parameter to the post-logout redirect URI if needed
+            String redirectUri = postLogoutRedirectUri;
+            if (tokenExpired) {
+                // Check if the URI already has parameters
+                redirectUri += (redirectUri.contains("?") ? "&" : "?") + SESSION_EXPIRED_PARAM;
+            }
+            
+            String encodedRedirectUri = URLEncoder.encode(redirectUri, StandardCharsets.UTF_8.toString());
+
+            String logoutUrl = logoutUri + "?post_logout_redirect_uri=" + encodedRedirectUri;
+
+            DebugLogger.log("Redirecting to logout URL: " + logoutUrl);
+            response.sendRedirect(logoutUrl);
+        } catch (Exception e) {
+            DebugLogger.log("Error during logout redirect: " + e.getMessage());
+            // Fall back to local logout
+            String redirectUrl = request.getContextPath() + "/auth/login?";
+            redirectUrl += tokenExpired ? SESSION_EXPIRED_PARAM : "logout=true";
+            response.sendRedirect(redirectUrl);
+        }
+
+
+try {
                         customLogoutHandler.onLogoutSuccess(
                             request, 
                             response, 
