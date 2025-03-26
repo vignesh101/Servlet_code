@@ -1,3 +1,20 @@
+  try {
+                        customLogoutHandler.onLogoutSuccess(
+                            request, 
+                            response, 
+                            SecurityContextHolder.getContext().getAuthentication()
+                        );
+                        // The logout handler will handle the redirect, so we return here
+                        return;
+                    } catch (Exception e) {
+                        DebugLogger.log("Error during automatic logout: " + e.getMessage());
+                        // If there's an error in the logout process, fall back to the original behavior
+                        session.invalidate();
+                        response.sendRedirect(request.getContextPath() + "/auth/login?expired=true");
+                        return;
+                    }
+
+
 // In CustomLogoutHandler.java, update the onLogoutSuccess method:
 
 @Override
