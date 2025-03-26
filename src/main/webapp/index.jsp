@@ -1,3 +1,29 @@
+try {
+    // Modify the redirect URL based on whether this was a token expiration
+    String redirectUri = isTokenExpired ? 
+        postLogoutRedirectUri.replace("?logout=true", "?expired=true") : 
+        postLogoutRedirectUri;
+            
+    String encodedRedirectUri = URLEncoder.encode(redirectUri, StandardCharsets.UTF_8.toString());
+
+    // Start with the base logout URL
+    StringBuilder logoutUrl = new StringBuilder(logoutUri);
+    logoutUrl.append("?post_logout_redirect_uri=").append(encodedRedirectUri);
+    
+    // Add login_hint parameter if we have the user's email
+    if (userEmail != null && !userEmail.isEmpty()) {
+        logoutUrl.append("&login_hint=")
+                .append(URLEncoder.encode(userEmail, StandardCharsets.UTF_8.toString()));
+        // Add prompt=select_account to ensure only this user's account is shown
+        logoutUrl.append("&prompt=select_account");
+        DebugLogger.log("Added login_hint and prompt=select_account to logout URL for user: " + userEmail);
+    }
+
+    DebugLogger.log("Redirecting to logout URL: " + logoutUrl);
+    response.sendRedirect(logoutUrl.toString());
+}
+
+
 package com.msal.filters;
 
 import com.msal.log.DebugLogger;
