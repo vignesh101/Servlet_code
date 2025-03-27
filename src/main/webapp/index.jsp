@@ -6,7 +6,27 @@ String returnedNonce = extractNonceFromToken(request); // Implement this
 
 
 
+private String extractNonceFromToken(String idToken) throws Exception {
+        if (idToken == null) {
+            return null;
+        }
+        // ID token is a JWT with three parts: header.payload.signature
+        String[] parts = idToken.split("\\.");
+        if (parts.length != 3) {
+            throw new AuthenticationException("Invalid ID token format") {};
+        }
 
+        // Decode the payload (second part)
+        byte[] decodedBytes = java.util.Base64.getUrlDecoder().decode(parts[1]);
+        String decodedPayload = new String(decodedBytes, java.nio.charset.StandardCharsets.UTF_8);
+
+        // Parse JSON payload
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode tokenJson = mapper.readTree(decodedPayload);
+
+        // Extract nonce
+        return tokenJson.has("nonce") ? tokenJson.get("nonce").asText() : null;
+    }
 
 
 
