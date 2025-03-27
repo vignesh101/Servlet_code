@@ -1,3 +1,16 @@
+String returnedNonce = extractNonceFromToken(request); // Implement this
+    String originalNonce = (String) request.getSession().getAttribute("auth_nonce");
+    if (!returnedNonce.equals(originalNonce)) {
+        throw new AuthenticationException("Invalid nonce parameter") {};
+    }
+
+
+
+
+
+
+
+
 .and()
 .headers()
 .cacheControl()
