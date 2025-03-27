@@ -1,49 +1,228 @@
-String returnedNonce = extractNonceFromToken(request); // Implement this
-    String originalNonce = (String) request.getSession().getAttribute("auth_nonce");
-    if (!returnedNonce.equals(originalNonce)) {
-        throw new AuthenticationException("Invalid nonce parameter") {};
+package com.msal.filters;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.aad.msal4j.IAuthenticationResult;
+import com.msal.log.DebugLogger;
+import com.msal.model.User;
+import com.msal.model.UserPrincipal;
+import com.msal.model.UserProfile;
+import com.msal.repository.UserRepository;
+import com.msal.service.MsalService;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.io.IOException;
+import java.util.Optional;
+
+public class MsalAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
+
+    private final MsalService msalService;
+    private final UserRepository userRepository;
+
+    public MsalAuthenticationFilter(AuthenticationManager authenticationManager,
+                                    MsalService msalService,
+                                    UserRepository userRepository) {
+        super(new AntPathRequestMatcher("/login/oauth2/code/**"));
+        setAuthenticationManager(authenticationManager);
+        this.msalService = msalService;
+        this.userRepository = userRepository;
     }
 
+    @Override
+    public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
+            throws AuthenticationException {
 
+        String returnedState = request.getParameter("state");
+        String originalState = (String) request.getSession().getAttribute("auth_state");
 
-private String extractNonceFromToken(String idToken) throws Exception {
+        DebugLogger.log("Returned state: " + returnedState);
+        DebugLogger.log("Original state from session: " + originalState);
+
+        if (returnedState == null || !returnedState.equals(originalState)) {
+            DebugLogger.log("State parameter mismatch! Returned: " + returnedState + ", Original: " + originalState);
+            throw new AuthenticationException("Invalid state parameter") {
+                private static final long serialVersionUID = 1L;
+            };
+        }
+
+        String error = request.getParameter("error");
+        String errorDescription = request.getParameter("error_description");
+        if (error != null) {
+            throw new AuthenticationException("Azure AD returned an error: " + error + " - " + errorDescription) {
+                private static final long serialVersionUID = 1L;
+            };
+        }
+
+        String code = request.getParameter("code");
+        if (code == null) {
+            throw new AuthenticationException("Authorization code not found") {
+                private static final long serialVersionUID = 1L;
+            };
+        }
+
+        try {
+            IAuthenticationResult result = msalService.acquireToken(code);
+
+            String returnedNonce = extractNonceFromToken(result.idToken());
+            String originalNonce = (String) request.getSession().getAttribute("auth_nonce");
+
+            Authentication auth = processSuccessfulAuth(result, request.getSession());
+
+            SecurityContextHolder.getContext().setAuthentication(auth);
+
+            return auth;
+        } catch (Exception e) {
+            DebugLogger.log("Authentication failed: " + e.getMessage());
+            throw new AuthenticationException("Authentication failed: " + e.getMessage()) {
+                private static final long serialVersionUID = 1L;
+            };
+        }
+    }
+
+    @Override
+    protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response,
+                                            FilterChain chain, Authentication authResult)
+            throws IOException, ServletException {
+        super.successfulAuthentication(request, response, chain, authResult);
+
+        request.getSession().removeAttribute("auth_state");
+        request.getSession().removeAttribute("auth_nonce");
+    }
+
+    @Override
+    protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
+                                              AuthenticationException failed)
+            throws IOException, ServletException {
+
+        request.getSession().removeAttribute("auth_state");
+        request.getSession().removeAttribute("auth_nonce");
+
+        super.unsuccessfulAuthentication(request, response, failed);
+    }
+
+    private String extractNonceFromToken(String idToken) throws Exception {
         if (idToken == null) {
             return null;
         }
-        // ID token is a JWT with three parts: header.payload.signature
+
         String[] parts = idToken.split("\\.");
         if (parts.length != 3) {
             throw new AuthenticationException("Invalid ID token format") {};
         }
 
-        // Decode the payload (second part)
         byte[] decodedBytes = java.util.Base64.getUrlDecoder().decode(parts[1]);
         String decodedPayload = new String(decodedBytes, java.nio.charset.StandardCharsets.UTF_8);
 
-        // Parse JSON payload
         ObjectMapper mapper = new ObjectMapper();
         JsonNode tokenJson = mapper.readTree(decodedPayload);
 
-        // Extract nonce
         return tokenJson.has("nonce") ? tokenJson.get("nonce").asText() : null;
     }
 
+    private Authentication processSuccessfulAuth(IAuthenticationResult result, HttpSession session) throws Exception {
+        String idToken = result.idToken();
+        String[] parts = idToken.split("\\.");
+
+        ObjectMapper mapper = new ObjectMapper();
+
+        if (parts.length > 1) {
+            byte[] decodedBytes = java.util.Base64.getUrlDecoder().decode(parts[1]);
+            String decodedPayload = new String(decodedBytes, java.nio.charset.StandardCharsets.UTF_8);
+
+            DebugLogger.log("ID Token payload: " + decodedPayload);
+
+            JsonNode tokenJson = mapper.readTree(decodedPayload);
+
+            String email = extractEmailFromToken(tokenJson);
+
+            if (email == null) {
+                throw new AuthenticationException("Could not extract email from token") {
+                    private static final long serialVersionUID = 1L;
+                };
+            }
+
+            DebugLogger.log("Authenticated email: " + email);
+
+            UserProfile userProfile = new UserProfile();
+            userProfile.setName(email);
+            session.setAttribute("userInfo", userProfile);
 
 
 
-.and()
-.headers()
-.cacheControl()
-.and()
-.httpStrictTransportSecurity()
-.and()
-.frameOptions()
-.deny()
+            Optional<User> userOpt = userRepository.findByName(email);
 
+            if (!userOpt.isPresent()) {
+                throw new AuthenticationException("User not found") {
+                    private static final long serialVersionUID = 1L;
+                };
+            }
 
-response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-        response.setHeader("Pragma", "no-cache");
-        response.setDateHeader("Expires", 0);
+            User user = userOpt.get();
+
+//            if (tokenJson.has("exp")) {
+//
+//                long expirationTimestamp = tokenJson.get("exp").asLong();
+//                long currentTimestamp = java.time.Instant.now().getEpochSecond();
+//                long expiresInSeconds = expirationTimestamp - currentTimestamp;
+//
+//                session.setAttribute("expirationTimestamp", expirationTimestamp);
+//
+//                int sessionTimeoutSeconds = (int) Math.max(expiresInSeconds - 30, 60);
+//                session.setMaxInactiveInterval(sessionTimeoutSeconds);
+//
+//            }
+//            else{
+
+                long currentTimestamp = java.time.Instant.now().getEpochSecond();
+                long expiresInSeconds = currentTimestamp + (1*60);
+
+                int sessionTimeoutSeconds = 55;
+
+                session.setAttribute("expirationTimestamp", expiresInSeconds);
+
+                session.setMaxInactiveInterval(sessionTimeoutSeconds);
+
+//            }
+
+            DebugLogger.log("User authenticated with roles: " + user.getRoles());
+
+            UserPrincipal userPrincipal = new UserPrincipal(user);
+
+            return new UsernamePasswordAuthenticationToken(
+                    userPrincipal,
+                    null,
+                    userPrincipal.getAuthorities()
+            );
+        }
+
+        throw new AuthenticationException("Invalid ID token format") {
+            private static final long serialVersionUID = 1L;
+        };
+    }
+
+    private String extractEmailFromToken(JsonNode tokenJson) {
+        if (tokenJson.has("email")) {
+            return tokenJson.get("email").asText();
+        } else if (tokenJson.has("preferred_username")) {
+            return tokenJson.get("preferred_username").asText();
+        } else if (tokenJson.has("upn")) {
+            return tokenJson.get("upn").asText();
+        }
+        return null;
+    }
+}
+
 
 
 package com.msal.filters;
