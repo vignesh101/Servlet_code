@@ -1,1 +1,1 @@
-mvn install:install-file -DgroupId=br.com.softwareexpress.esitef -DartifactId=e-sitef-entity -Dversion=5.150-SNAPSHOT -Dpackaging=jar -Dfile=/path/to/e-sitef-entity-5.150-SNAPSHOT.jar
+mvn install:install-file -Dfile=/path/to/plexus-utils-3.0.15.jar -DgroupId=org.codehaus.plexus -DartifactId=plexus-utils -Dversion=3.0.15 -Dpackaging=jar
